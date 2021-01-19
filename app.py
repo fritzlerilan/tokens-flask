@@ -4,10 +4,14 @@ from cryptography.fernet import Fernet
 TOKEN = 'token'
 USERNAME = 'username'
 PASSWORD = 'password'
-TTL = 40  # Seconds Time to Leave
+TTL = 60  # Seconds Time to Leave
 
 app = Flask(__name__)
 
+f = open("key.key", "rb")
+key = f.read()
+fernet = Fernet(key)
+f.close()
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -16,7 +20,7 @@ def login():
     if user and pwd:
         if user == 'admin' and pwd == 'admin':
             response = Response()
-            response.headers[TOKEN] = '123456789'  # token via headers
+            response.headers[TOKEN] = fernet.encrypt(bytes('token-token', 'utf-8'))
             response.status_code = 200
             return response, 200
         else:
@@ -30,10 +34,13 @@ def showSecretThings():
     token_info = request.get_json() or request.form
     token = token_info.get(TOKEN)
     if token:
-        if token == '123456789':
-            return jsonify({
-                "message": "This was just a joke. Thank you for autheticating :)"
-            }), 200
+        try:
+            fernet.decrypt(bytes(token, 'utf-8'), TTL)
+        except:
+            return jsonify({"messege": "Token invalid or expired"}), 401
+
+        return jsonify({"message": "This was just a joke. Thank you for autheticating :)"}), 200
+    
     return "", 401
 
 
